@@ -7,6 +7,7 @@ import socket
 import time
 
 
+
 #   Fazer uma classe para abstrair os request
 image_type = ["png", "jpg"]
 
