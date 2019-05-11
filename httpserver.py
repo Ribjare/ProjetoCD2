@@ -6,6 +6,11 @@
 import socket
 import time
 
+
+#   Fazer uma classe para abstrair os request
+image_type = ["png", "jpg"]
+
+
 def handle_request(request):
     """Returns file content for client request"""
 
@@ -21,7 +26,13 @@ def handle_request(request):
 
     # Return file contents
     try:
-        if filename.endswith(".jpg"):
+        if filename.endswith("jpg"):
+            with open('htdocs' +filename, 'rb') as fin:
+                return fin.read()
+        if filename.endswith("png"):
+            with open('htdocs' +filename, 'rb') as fin:
+                return fin.read()
+        if filename.endswith("jpeg"):
             with open('htdocs' +filename, 'rb') as fin:
                 return fin.read()
 
