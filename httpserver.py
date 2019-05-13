@@ -7,9 +7,16 @@ import socket
 import time
 
 
+class Content:
+    def __init__(self, header, body):
+        self.header = header
+        self.body = body
+
+
+
 
 #   Fazer uma classe para abstrair os request
-image_type = ["png", "jpg"]
+#image_type = ["png", "jpg"]
 
 
 def handle_request(request):
@@ -19,6 +26,8 @@ def handle_request(request):
     print(request)
     headers = request.split('\n')
     get_content = headers[0].split()
+    print("\n\n HEADERS")
+    print(headers)
 
     # Get filename
     filename = get_content[1]
@@ -27,13 +36,13 @@ def handle_request(request):
 
     # Return file contents
     try:
-        if filename.endswith("jpg"):
+        if filename.endswith(".jpg"):
             with open('htdocs' +filename, 'rb') as fin:
                 return fin.read()
-        if filename.endswith("png"):
+        if filename.endswith(".png"):
             with open('htdocs' +filename, 'rb') as fin:
                 return fin.read()
-        if filename.endswith("jpeg"):
+        if filename.endswith(".jpeg"):
             with open('htdocs' +filename, 'rb') as fin:
                 return fin.read()
 
@@ -48,6 +57,13 @@ def handle_response(content):
 
     # Build HTTP response
     if content:
+
+        if "/private/" in content:
+            # print(content)
+            response = 'HTTP/1.0 403 FORBIDDEN\n\n Access Denied'.encode()
+            return response
+
+
         response = 'HTTP/1.0 200 OK\n'.encode()
         response += f'Content-Length:{len(content)}\n'.encode()
 
