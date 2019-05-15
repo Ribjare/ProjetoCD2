@@ -78,6 +78,7 @@ def createResponse(request):
         else:
             type = 'Content-Type:{}\n'.format("image/"+request.filetype)
 
+
         length = f'Content-Length:{len(content)}\n'
         response = status
         response += type
