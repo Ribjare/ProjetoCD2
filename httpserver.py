@@ -6,17 +6,38 @@
 import socket
 import time
 
+image_type = ["png", "jpg"]
 
-class Content:
-    def __init__(self, header, body):
+
+class Response:
+    def __init__(self, header, body, length=None, type=None):
         self.header = header
         self.body = body
+        self.status = "Unknown"     # HTTP/1.0 200 OK, etc
+        self.contentLength = length
+        self.contentType = type
 
 
+class Request:
+    def __init__(self, headers, filename):
 
+        self.headers = headers
+        self.path = filename
+        if self.path == '/':
+            self.path = '/index.html'
+        else:
+            self.path = filename
 
-#   Fazer uma classe para abstrair os request
-#image_type = ["png", "jpg"]
+        #   Ir buscar o file name ao path
+        arr = self.path.split('/')
+        self.filename = arr[len(arr)]
+
+        nma = filename.split('.')
+
+        if nma[1] in image_type:
+            self.filetype = "not text"
+        else:
+            self.filetype = "text"
 
 
 def handle_request(request):
@@ -34,16 +55,18 @@ def handle_request(request):
     if filename == '/':
         filename = '/index.html'
 
+    r = Request(headers=headers, filename=filename)
+
     # Return file contents
     try:
         if filename.endswith(".jpg"):
-            with open('htdocs' +filename, 'rb') as fin:
+            with open('htdocs' + filename, 'rb') as fin:
                 return fin.read()
         if filename.endswith(".png"):
-            with open('htdocs' +filename, 'rb') as fin:
+            with open('htdocs' + filename, 'rb') as fin:
                 return fin.read()
         if filename.endswith(".jpeg"):
-            with open('htdocs' +filename, 'rb') as fin:
+            with open('htdocs' + filename, 'rb') as fin:
                 return fin.read()
 
         with open('htdocs' + filename) as fin:
@@ -57,12 +80,6 @@ def handle_response(content):
 
     # Build HTTP response
     if content:
-
-        if "/private/" in content:
-            # print(content)
-            response = 'HTTP/1.0 403 FORBIDDEN\n\n Access Denied'.encode()
-            return response
-
 
         response = 'HTTP/1.0 200 OK\n'.encode()
         response += f'Content-Length:{len(content)}\n'.encode()
