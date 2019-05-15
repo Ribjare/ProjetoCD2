@@ -10,34 +10,53 @@ image_type = ["png", "jpg"]
 
 
 class Response:
-    def __init__(self, header, body, length=None, type=None):
-        self.header = header
+    def __init__(self, body, length=None, type=None):
+
         self.body = body
         self.status = "Unknown"     # HTTP/1.0 200 OK, etc
         self.contentLength = length
         self.contentType = type
 
+    def getString(self):
+        response = self.status + "\n"
+
 
 class Request:
-    def __init__(self, headers, filename):
+    def __init__(self, headers):
 
         self.headers = headers
-        self.path = filename
+
+        get_content = headers[0].split()
+
+        #   Get filename
+        self.path = get_content[1]
         if self.path == '/':
-            self.path = '/index.html'
-        else:
-            self.path = filename
+            self.path = 'htdocs' + '/index.html'
 
         #   Ir buscar o file name ao path
         arr = self.path.split('/')
-        self.filename = arr[len(arr)]
+        self.filename = arr[len(arr)-1]
 
-        nma = filename.split('.')
-
-        if nma[1] in image_type:
-            self.filetype = "not text"
+        #   Get the file type (if is text or not)
+        if self.filename.split('.')[1] in image_type:
+            self.filetype = self.filename.split('.')[1]
         else:
             self.filetype = "text"
+
+        #   Get Connection type (close, keep-alive, etc)
+        self.connectionType = headers[len(headers)-3].split(":")[1]
+
+    def getContent(self):
+        try:
+            if self.filetype != "text":
+                with open(self.path, 'rb') as fin:
+                    return fin.read()
+            else:
+                with open(self.path) as fin:
+                    return fin.read()
+
+        except FileNotFoundError:
+            return None
 
 
 def handle_request(request):
@@ -50,29 +69,10 @@ def handle_request(request):
     print("\n\n HEADERS")
     print(headers)
 
-    # Get filename
-    filename = get_content[1]
-    if filename == '/':
-        filename = '/index.html'
-
-    r = Request(headers=headers, filename=filename)
+    re = Request(headers=headers)
 
     # Return file contents
-    try:
-        if filename.endswith(".jpg"):
-            with open('htdocs' + filename, 'rb') as fin:
-                return fin.read()
-        if filename.endswith(".png"):
-            with open('htdocs' + filename, 'rb') as fin:
-                return fin.read()
-        if filename.endswith(".jpeg"):
-            with open('htdocs' + filename, 'rb') as fin:
-                return fin.read()
-
-        with open('htdocs' + filename) as fin:
-            return fin.read()
-    except FileNotFoundError:
-        return None
+    return re.getContent()
 
 
 def handle_response(content):
