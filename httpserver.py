@@ -10,10 +10,10 @@ image_type = ["png", "jpg"]
 
 
 class Response:
-    def __init__(self, body, length=None, type=None):
+    def __init__(self, body, length=None, type=None, status="Unknown"):
 
         self.body = body
-        self.status = "Unknown"     # HTTP/1.0 200 OK, etc
+        self.status = status     # HTTP/1.0 200 OK, etc
         self.contentLength = length
         self.contentType = type
 
@@ -58,6 +58,29 @@ class Request:
         except FileNotFoundError:
             return None
 
+    def isPrivate(self):
+        if "/private/" in self.path:
+            return True
+        return False
+
+
+def createResponse(request):
+    body = request.getContent()
+
+    if body:
+        if request.isPrivate():
+            status = 'HTTP/1.0 403 Forbidden\n'
+        else:
+            status = 'HTTP/1.0 200 OK\n'
+
+        if request.filetype == 'text':
+            type = f'Content-Type:{"text/html"}\n'
+        else:
+            type = 'Content-Type:{}\n'.format("image/"+request.filetype)
+
+        length = f'Content-Length:{len(content)}\n'
+
+
 
 def handle_request(request):
     """Returns file content for client request"""
@@ -86,10 +109,11 @@ def handle_response(content):
 
         if isinstance(content, bytes):
             response += f'Content-Type:{"image/jpeg"}\n\n'.encode()
-            response += content
+            response += content     # because it's already enconded
         else:
             response += f'Content-Type:{"text/html"}\n\n'.encode()
             response += content.encode()
+
     else:
         response = 'HTTP/1.0 404 NOT FOUND\n\nFile Not Found'.encode()
 
