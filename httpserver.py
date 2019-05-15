@@ -78,8 +78,7 @@ def createResponse(request):
         else:
             type = 'Content-Type:{}\n'.format("image/"+request.filetype)
 
-
-        length = f'Content-Length:{len(content)}\n'
+        length = f'Content-Length:{len(body)}\n'
         response = status
         response += type
         response += length
@@ -88,8 +87,6 @@ def createResponse(request):
 
     else:
         response = 'HTTP/1.0 404 NOT FOUND\n\nFile Not Found'
-
-
 
 
 def handle_request(request):
