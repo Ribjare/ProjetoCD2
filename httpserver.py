@@ -5,21 +5,36 @@
 
 import socket
 import time
+import threading
+
 
 image_type = ["png", "jpg"]
 
 
 class Response:
-    def __init__(self, body, length=None, type=None, status="Unknown"):
+    def __init__(self, body, connectionType, length=None, type=None, status="Unknown"):
 
         self.body = body
         self.status = status     # HTTP/1.0 200 OK, etc
+        self.date = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.contentLength = length
         self.contentType = type
+        self.connectionType = connectionType
 
-    def getString(self):
+    def get_string_response(self):
         response = self.status + "\n"
+        response += self.date + "\n"
+        response += self.contentLength+"\n"
+        response += self.contentType+"\n"
+        response += self.connectionType+"\n"
+        response += "\n"
+        response.encode()
+        if isinstance(self.body, bytes):
+            response += self.body
+        else:
+            response += self.body.enconde()
 
+        return response
 
 class Request:
     def __init__(self, headers):
@@ -30,6 +45,7 @@ class Request:
 
         #   Get filename
         self.path = get_content[1]
+        print(get_content)
         if self.path == '/':
             self.path = 'htdocs' + '/index.html'
 
@@ -56,37 +72,12 @@ class Request:
                     return fin.read()
 
         except FileNotFoundError:
-            return None
+            raise FileNotFoundError
 
     def isPrivate(self):
         if "/private/" in self.path:
             return True
         return False
-
-
-def createResponse(request):
-    body = request.getContent()
-
-    if body:
-        if request.isPrivate():
-            status = 'HTTP/1.0 403 Forbidden\n'
-        else:
-            status = 'HTTP/1.0 200 OK\n'
-
-        if request.filetype == 'text':
-            type = f'Content-Type:{"text/html"}\n'
-        else:
-            type = 'Content-Type:{}\n'.format("image/"+request.filetype)
-
-        length = f'Content-Length:{len(body)}\n'
-        response = status
-        response += type
-        response += length
-        response += '\n'
-        response += body
-
-    else:
-        response = 'HTTP/1.0 404 NOT FOUND\n\nFile Not Found'
 
 
 def handle_request(request):
@@ -95,19 +86,33 @@ def handle_request(request):
     # Parse headers
     print(request)
     headers = request.split('\n')
-    get_content = headers[0].split()
-    print("\n\n HEADERS")
-    print(headers)
 
     re = Request(headers=headers)
+    try:
+        if re.isPrivate():
+            return Response(status="HTTP/1.0 403 Forbidden", body="Private link",
+                            connectionType="close")
 
-    # Return file contents
-    return re.getContent()
+        body = re.getContent()
+
+    #   If is a Bad Request
+    except PermissionError:
+        return Response(status="HTTP/1.0 400 Bad Request", body="Bad Request", connectionType="close")
+
+    #   If the file doesn't exist
+    except FileNotFoundError:
+        return Response(status="HTTP/1.0 404 Not Found", body="File Not Found", connectionType="close")
+
+    # Return response
+    return Response(status="HTTP/1.0 200 OK", body=body, length=len(body), type=re.filetype,
+                    connectionType=re.connectionType)
 
 
 def handle_response(content):
     """Returns byte-encoded HTTP response."""
 
+
+    """
     # Build HTTP response
     if content:
 
@@ -125,7 +130,26 @@ def handle_response(content):
         response = 'HTTP/1.0 404 NOT FOUND\n\nFile Not Found'.encode()
 
     # Return encoded response
+    """
     return response
+
+
+def close_connection(client_connection):
+    client_connection.close();
+
+
+def client_handle(client_connection):
+    while True:
+        # Handle client request
+        request = client_connection.recv(1024).decode()
+
+        content = handle_request(request)
+
+        # Prepare byte-encoded HTTP response
+        response = handle_response(content)
+
+        # Return HTTP response
+        client_connection.sendall(response)
 
 
 # Define socket host and port
@@ -143,15 +167,8 @@ while True:
     # Wait for client connections
     client_connection, client_address = server_socket.accept()
 
-    # Handle client request
-    request = client_connection.recv(1024).decode()
-    content = handle_request(request)
-
-    # Prepare byte-encoded HTTP response
-    response = handle_response(content)
-
-    # Return HTTP response
-    client_connection.sendall(response)
+    thread = threading.Thread(target=client_handle, args=(client_connection,))
+    thread.start()
 
     time.sleep(5)
     client_connection.close()
