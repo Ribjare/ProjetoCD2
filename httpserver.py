@@ -12,29 +12,34 @@ image_type = ["png", "jpg"]
 
 
 class Response:
-    def __init__(self, body, connectionType, length=None, type=None, status="Unknown"):
+    def __init__(self, body, connectionType, contentType=None, status="Unknown"):
 
         self.body = body
         self.status = status     # HTTP/1.0 200 OK, etc
         self.date = time.strftime("%a, %d %b %Y %H:%M:%S")
-        self.contentLength = length
-        self.contentType = type
+        self.contentType = contentType
         self.connectionType = connectionType
 
     def get_string_response(self):
         response = self.status + "\n"
-        response += self.date + "\n"
-        response += self.contentLength+"\n"
-        response += self.contentType+"\n"
-        response += self.connectionType+"\n"
-        response += "\n"
-        response.encode()
-        if isinstance(self.body, bytes):
-            response += self.body
-        else:
-            response += self.body.enconde()
+        response += 'Date: ' + self.date + "\n"
+        response += 'Content-Length: {}'.format(len(self.body))+"\n"
 
-        return response
+        if self.contentType is not None:
+            response += 'Content-Type: {} '.format(self.contentType) + "\n"
+
+        response += 'Connection: ' + self.connectionType+"\n\n"
+
+        if isinstance(self.body, bytes):
+            final = response.encode()
+            final += self.body
+        else:
+            response += self.body
+            final = response.encode()
+
+        print(response)
+        return final
+
 
 class Request:
     def __init__(self, headers):
@@ -44,10 +49,13 @@ class Request:
         get_content = headers[0].split()
 
         #   Get filename
-        self.path = get_content[1]
+        print('Content: ')
         print(get_content)
+
+        self.path = get_content[1]
         if self.path == '/':
-            self.path = 'htdocs' + '/index.html'
+            self.path = '/index.html'
+        self.path = 'htdocs' + self.path
 
         #   Ir buscar o file name ao path
         arr = self.path.split('/')
@@ -55,15 +63,16 @@ class Request:
 
         #   Get the file type (if is text or not)
         if self.filename.split('.')[1] in image_type:
-            self.filetype = self.filename.split('.')[1]
+            self.filetype = '{}/{}'.format("images", self.filename.split('.')[1])
         else:
-            self.filetype = "text"
+            self.filetype = "text/html"
 
         #   Get Connection type (close, keep-alive, etc)
         self.connectionType = headers[len(headers)-3].split(":")[1]
 
     def getContent(self):
         try:
+            print(self.path)
             if self.filetype != "text":
                 with open(self.path, 'rb') as fin:
                     return fin.read()
@@ -84,9 +93,9 @@ def handle_request(request):
     """Returns file content for client request"""
 
     # Parse headers
-    print(request)
+    print("Request:"+request)
     headers = request.split('\n')
-
+    time.sleep(1)
     re = Request(headers=headers)
     try:
         if re.isPrivate():
@@ -104,52 +113,24 @@ def handle_request(request):
         return Response(status="HTTP/1.0 404 Not Found", body="File Not Found", connectionType="close")
 
     # Return response
-    return Response(status="HTTP/1.0 200 OK", body=body, length=len(body), type=re.filetype,
+    return Response(status="HTTP/1.0 200 OK", body=body, contentType=re.filetype,
                     connectionType=re.connectionType)
 
 
-def handle_response(content):
-    """Returns byte-encoded HTTP response."""
-
-
-    """
-    # Build HTTP response
-    if content:
-
-        response = 'HTTP/1.0 200 OK\n'.encode()
-        response += f'Content-Length:{len(content)}\n'.encode()
-
-        if isinstance(content, bytes):
-            response += f'Content-Type:{"image/jpeg"}\n\n'.encode()
-            response += content     # because it's already enconded
-        else:
-            response += f'Content-Type:{"text/html"}\n\n'.encode()
-            response += content.encode()
-
-    else:
-        response = 'HTTP/1.0 404 NOT FOUND\n\nFile Not Found'.encode()
-
-    # Return encoded response
-    """
-    return response
-
-
 def close_connection(client_connection):
-    client_connection.close();
+    client_connection.close()
 
 
 def client_handle(client_connection):
     while True:
-        # Handle client request
+    # Handle client request
         request = client_connection.recv(1024).decode()
 
         content = handle_request(request)
 
-        # Prepare byte-encoded HTTP response
-        response = handle_response(content)
-
-        # Return HTTP response
-        client_connection.sendall(response)
+    # Return HTTP response
+        client_connection.sendall(content.get_string_response())
+    # break
 
 
 # Define socket host and port
@@ -169,9 +150,9 @@ while True:
 
     thread = threading.Thread(target=client_handle, args=(client_connection,))
     thread.start()
+    #   client_connection.getpeername() to get the IP MA DUDE
 
-    time.sleep(5)
-    client_connection.close()
+
 
 # Close socket
 server_socket.close()
