@@ -6,28 +6,30 @@
 import socket
 import time
 import threading
+import json
 
 
 image_type = ["png", "jpg"]
 
 
 class Response:
-    def __init__(self, body, connectionType, contentType=None, status="Unknown"):
+    def __init__(self, connectionType="keep-alive", body='', contentType=None, status="Unknown", length=0):
 
         self.body = body
         self.status = status     # HTTP/1.0 200 OK, etc
         self.date = time.strftime("%a, %d %b %Y %H:%M:%S")
         self.contentType = contentType
         self.connectionType = connectionType
+        self.length = length
 
     def get_string_response(self):
         response = self.status + "\n"
         response += 'Date: ' + self.date + "\n"
-        response += 'Content-Length: {}'.format(len(self.body))+"\n"
-
+        response += 'Content-Length: {}'.format(self.length)+"\n"
+        #   imagem/text
         if self.contentType is not None:
             response += 'Content-Type: {} '.format(self.contentType) + "\n"
-
+        # Keep-Alive / Close
         response += 'Connection: ' + self.connectionType+"\n\n"
 
         if isinstance(self.body, bytes):
@@ -51,10 +53,13 @@ class Request:
         #   Get filename
         print('Content: ')
         print(get_content)
+        self.verbo = get_content[0]      # Get / Post / Head
 
         self.path = get_content[1]
         if self.path == '/':
             self.path = '/index.html'
+
+        #   Meter a basePath
         self.path = 'htdocs' + self.path
 
         #   Ir buscar o file name ao path
@@ -64,6 +69,14 @@ class Request:
         #   Get the file type (if is text or not)
         if self.filename.split('.')[1] in image_type:
             self.filetype = '{}/{}'.format("images", self.filename.split('.')[1])
+
+        #   If is the post function, the file type is json
+        elif self.verbo == "POST":
+
+            self.filetype = "application/json"
+            self.path = ""
+
+        #   Else is a text file
         else:
             self.filetype = "text/html"
 
@@ -73,6 +86,10 @@ class Request:
     def getContent(self):
         try:
             print(self.path)
+
+
+
+
             if self.filetype != "text":
                 with open(self.path, 'rb') as fin:
                     return fin.read()
@@ -104,6 +121,9 @@ def handle_request(request):
 
         body = re.getContent()
 
+        if re.verbo == "HEAD":
+            return Response(status="HTTP/1.0 200 OK", connectionType="close", length=len(body))
+
     #   If is a Bad Request
     except PermissionError:
         return Response(status="HTTP/1.0 400 Bad Request", body="Bad Request", connectionType="close")
@@ -114,22 +134,38 @@ def handle_request(request):
 
     # Return response
     return Response(status="HTTP/1.0 200 OK", body=body, contentType=re.filetype,
-                    connectionType=re.connectionType)
+                    connectionType=re.connectionType, length=len(body))
 
 
 def close_connection(client_connection):
     client_connection.close()
+    print('closing timer')
 
 
 def client_handle(client_connection):
     while True:
-    # Handle client request
-        request = client_connection.recv(1024).decode()
+        # Handle client request
+        timer = threading.Timer(interval=10.0, function=close_connection, args=[client_connection])
+        timer.start()
 
-        content = handle_request(request)
+        try:
+            request = client_connection.recv(1024).decode()
+            content = handle_request(request)
 
-    # Return HTTP response
-        client_connection.sendall(content.get_string_response())
+            timer.cancel()
+
+            # Return HTTP response
+            client_connection.sendall(content.get_string_response())
+
+            if content.connectionType == "close":
+
+                close_connection(client_connection)
+                print('Closing in!')
+                break
+
+        except ConnectionAbortedError:
+            print('Time out')
+            break
     # break
 
 
