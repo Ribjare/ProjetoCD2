@@ -1,0 +1,3 @@
+IP = ('127.0.0.1', 60581) | URL = htdocs/index.html
+IP = ('127.0.0.1', 60581) | URL = htdocs/public/ipsum.html
+IP = ('127.0.0.1', 60581) | URL = htdocs/index.html
