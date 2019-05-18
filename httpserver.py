@@ -7,6 +7,7 @@ import socket
 import time
 import threading
 import json
+import array as ar
 
 
 image_type = ["png", "jpg"]
@@ -87,40 +88,34 @@ class Request:
     def getContent(self):
         try:
             if self.verbo == "POST":
-
+                # Dividir o formulario
                 line = self.post_content.split("&")
 
                 array = []
-                """
+
+                # Ir buscar o que ja foi guardado
                 json_file = open("./data.json", "r")
                 data1 = json.load(json_file)
-                print("DATA GUARDADA")
                 # print(data1)
                 json_file.close()
-                array.append(json.dumps(data1))
-                """
-                print(array)
 
                 dataAux = {}
 
-                #   Put new data in the dict
+                # Criar um dicionario com os novos valores
                 for l in line:
                     value = l.split("=")[1]     # value
                     key = l.split("=")[0]       # key
                     dataAux[key] = value        # add to the dictionary
 
-                array.append(dataAux)
-                # data = json.dumps(dataAux)
-                print("POST AQUI")
+                # Acrescentar o novo valor ao array existente
+                data1.append(dataAux)
 
-                data = json.dumps(array)
+                # Voltar a meter no ficheiro
                 json_file = open("./data.json", "w")
-                json.dump(data, json_file)
+                json.dump(data1, json_file)
                 json_file.close()
 
-                data = json.loads(data)
-
-                return json.dumps(data)
+                return json.dumps(data1)
 
             if self.filetype != "text":
                 with open(self.path, 'rb') as fin:
