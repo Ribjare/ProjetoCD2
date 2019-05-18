@@ -89,6 +89,7 @@ class Request:
 
 
 
+
             if self.filetype != "text":
                 with open(self.path, 'rb') as fin:
                     return fin.read()
