@@ -154,3 +154,6 @@ Data = Sun, 19 May 2019 12:27:29 | IP = ('127.0.0.1', 62116) | URL = htdocs/inde
 Data = Sun, 19 May 2019 12:27:37 | IP = ('127.0.0.1', 62122) | URL = htdocs/public/images.html
 Data = Sun, 19 May 2019 12:27:38 | IP = ('127.0.0.1', 62123) | URL = htdocs/images/image.png
 Data = Sun, 19 May 2019 12:27:38 | IP = ('127.0.0.1', 62124) | URL = htdocs/images/image.jpg
+IP = ('127.0.0.1', 49916) | URL = htdocs/index.html
+IP = ('127.0.0.1', 49916) | URL = htdocs/public/audio.html
+IP = ('127.0.0.1', 49916) | URL = htdocs/audios/Lost_in_Space.mp3

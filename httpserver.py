@@ -87,6 +87,7 @@ class Request:
         self.connectionType = headers[len(headers)-3].split(":")[1]
 
 
+
     def getContent(self):
         try:
             if self.verbo == "POST":
