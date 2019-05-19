@@ -11,7 +11,7 @@ import array as ar
 
 
 image_type = ["png", "jpg"]
-
+audio_type = ["mpeg"]
 
 class Response:
     def __init__(self, connectionType="keep-alive", body='', contentType=None, status="Unknown", length=0):
@@ -78,6 +78,8 @@ class Request:
         elif self.filename.split('.')[1] in image_type:
             self.filetype = '{}/{}'.format("images", self.filename.split('.')[1])
         #   Else is a text file
+        elif self.filename.split('.')[1] in audio_type:
+            self.filetype = '{}/{}'.format("audios", self.filename.split('.')[1])
         else:
             self.filetype = "text/html"
 
