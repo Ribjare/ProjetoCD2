@@ -7,6 +7,7 @@ import socket
 import time
 import threading
 import json
+import array as ar
 
 
 image_type = ["png", "jpg"]
@@ -66,16 +67,16 @@ class Request:
         arr = self.path.split('/')
         self.filename = arr[len(arr)-1]
 
-        #   Get the file type (if is text or not)
-        if self.filename.split('.')[1] in image_type:
-            self.filetype = '{}/{}'.format("images", self.filename.split('.')[1])
-
         #   If is the post function, the file type is json
-        elif self.verbo == "POST":
+        if self.verbo == "POST":
 
             self.filetype = "application/json"
             self.path = ""
+            self.post_content = headers[len(headers)-1]
 
+        #   Get the file type (if is text or not)
+        elif self.filename.split('.')[1] in image_type:
+            self.filetype = '{}/{}'.format("images", self.filename.split('.')[1])
         #   Else is a text file
         else:
             self.filetype = "text/html"
@@ -83,12 +84,38 @@ class Request:
         #   Get Connection type (close, keep-alive, etc)
         self.connectionType = headers[len(headers)-3].split(":")[1]
 
+
     def getContent(self):
         try:
-            print(self.path)
+            if self.verbo == "POST":
+                # Dividir o formulario
+                line = self.post_content.split("&")
 
+                array = []
 
+                # Ir buscar o que ja foi guardado
+                json_file = open("./data.json", "r")
+                data1 = json.load(json_file)
+                # print(data1)
+                json_file.close()
 
+                dataAux = {}
+
+                # Criar um dicionario com os novos valores
+                for l in line:
+                    value = l.split("=")[1]     # value
+                    key = l.split("=")[0]       # key
+                    dataAux[key] = value        # add to the dictionary
+
+                # Acrescentar o novo valor ao array existente
+                data1.append(dataAux)
+
+                # Voltar a meter no ficheiro
+                json_file = open("./data.json", "w")
+                json.dump(data1, json_file)
+                json_file.close()
+
+                return json.dumps(data1)
 
             if self.filetype != "text":
                 with open(self.path, 'rb') as fin:
@@ -105,8 +132,18 @@ class Request:
             return True
         return False
 
+cache = {}
 
-def handle_request(request):
+# def get_cache():
+
+
+def add_log(client, request_url):
+    f = open("log.txt", "a")
+    f.write("IP = {} | URL = {}\n".format(client, request_url))
+    f.close()
+
+
+def handle_request(request, client):
     """Returns file content for client request"""
 
     # Parse headers
@@ -114,6 +151,9 @@ def handle_request(request):
     headers = request.split('\n')
     time.sleep(1)
     re = Request(headers=headers)
+
+    add_log(client.getpeername(), re.path)
+
     try:
         if re.isPrivate():
             return Response(status="HTTP/1.0 403 Forbidden", body="Private link",
@@ -150,7 +190,7 @@ def client_handle(client_connection):
 
         try:
             request = client_connection.recv(1024).decode()
-            content = handle_request(request)
+            content = handle_request(request, client_connection)
 
             timer.cancel()
 
@@ -180,15 +220,18 @@ server_socket.bind((SERVER_HOST, SERVER_PORT))
 server_socket.listen(1)
 print('Listening on port %s ...' % SERVER_PORT)
 
-while True:
-    # Wait for client connections
-    client_connection, client_address = server_socket.accept()
 
-    thread = threading.Thread(target=client_handle, args=(client_connection,))
-    thread.start()
-    #   client_connection.getpeername() to get the IP MA DUDE
+def server_start():
+    while True:
+        # Wait for client connections
+        client_connection, client_address = server_socket.accept()
+
+        thread = threading.Thread(target=client_handle, args=(client_connection,))
+        thread.start()
+        #   client_connection.getpeername() to get the IP MA DUDE
+
+    # Close socket
+    server_socket.close()
 
 
-
-# Close socket
-server_socket.close()
+server_start()
