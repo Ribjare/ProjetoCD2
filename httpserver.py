@@ -132,18 +132,48 @@ class Request:
             return True
         return False
 
-cache = {}
+cache = []
+
+
+class Statistics:
+
+    def get_from_cache(self, request_path):
+        #   Procura pelo requesta nas estatiticas
+        self.sort_cache()
+
+        for x in cache:
+            if x["url"] == request_path:
+                x["count"] = x["count"] + 1
+                return x["response"]
+
+        return None
+
+    def sort_cache(self):
+        cache.sort(key=lambda k: k['count'], reverse=True)
+        print("SORT")
+        print(cache)
+        n = 0
+        #   Remover da cache as respostas abaixo do top 2
+        for re in cache:
+            n += 1
+            if n <= 2:
+                continue
+            re['response'] = None
+
+    def add_cache(self, response, url):
+        newStat = {"url": url, "response": response, "count": 1}
+        cache.append(newStat)
 
 # def get_cache():
 
 
 def add_log(client, request_url):
     f = open("log.txt", "a")
-    f.write("IP = {} | URL = {}\n".format(client, request_url))
+    f.write("Data = {} | IP = {} | URL = {}\n".format(time.strftime("%a, %d %b %Y %H:%M:%S"), client, request_url))
     f.close()
 
 
-def handle_request(request, client):
+def handle_request(request, client, stat):
     """Returns file content for client request"""
 
     # Parse headers
@@ -153,28 +183,45 @@ def handle_request(request, client):
     re = Request(headers=headers)
 
     add_log(client.getpeername(), re.path)
+    response = stat.get_from_cache(re.path)
+
+    if response is not None:
+        print("RESPONDEU")
+        return response
+
+    time.sleep(0.1)
 
     try:
         if re.isPrivate():
-            return Response(status="HTTP/1.0 403 Forbidden", body="Private link",
+            response = Response(status="HTTP/1.0 403 Forbidden", body="Private link",
                             connectionType="close")
+            stat.add_cache(response, re.path)
+            return response
 
         body = re.getContent()
 
         if re.verbo == "HEAD":
-            return Response(status="HTTP/1.0 200 OK", connectionType="close", length=len(body))
+            response = Response(status="HTTP/1.0 200 OK", connectionType="close", length=len(body))
+            stat.add_cache(response, re.path)
+            return response
 
     #   If is a Bad Request
     except PermissionError:
-        return Response(status="HTTP/1.0 400 Bad Request", body="Bad Request", connectionType="close")
+        response = Response(status="HTTP/1.0 400 Bad Request", body="Bad Request", connectionType="close")
+        stat.add_cache(response, re.path)
+        return response
 
     #   If the file doesn't exist
     except FileNotFoundError:
-        return Response(status="HTTP/1.0 404 Not Found", body="File Not Found", connectionType="close")
+        response = Response(status="HTTP/1.0 404 Not Found", body="File Not Found", connectionType="close")
+        stat.add_cache(response, re.path)
+        return response
 
     # Return response
-    return Response(status="HTTP/1.0 200 OK", body=body, contentType=re.filetype,
-                    connectionType=re.connectionType, length=len(body))
+    response = Response(status="HTTP/1.0 200 OK", body=body, contentType=re.filetype,
+                        connectionType=re.connectionType, length=len(body))
+    stat.add_cache(response, re.path)
+    return response
 
 
 def close_connection(client_connection):
@@ -182,7 +229,7 @@ def close_connection(client_connection):
     print('closing timer')
 
 
-def client_handle(client_connection):
+def client_handle(client_connection, stat):
     while True:
         # Handle client request
         timer = threading.Timer(interval=10.0, function=close_connection, args=[client_connection])
@@ -190,7 +237,7 @@ def client_handle(client_connection):
 
         try:
             request = client_connection.recv(1024).decode()
-            content = handle_request(request, client_connection)
+            content = handle_request(request, client_connection, stat)
 
             timer.cancel()
 
@@ -226,7 +273,8 @@ def server_start():
         # Wait for client connections
         client_connection, client_address = server_socket.accept()
 
-        thread = threading.Thread(target=client_handle, args=(client_connection,))
+        statistics = Statistics()
+        thread = threading.Thread(target=client_handle, args=(client_connection, statistics))
         thread.start()
         #   client_connection.getpeername() to get the IP MA DUDE
 
