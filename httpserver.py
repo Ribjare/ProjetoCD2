@@ -7,12 +7,12 @@ import socket
 import time
 import threading
 import json
-import array as ar
 
 
 image_type = ["png", "jpg"]
 audio_type = ["mpeg"]
 video_type = ["mp4"]
+
 
 class Response:
     def __init__(self, connectionType="keep-alive", body='', contentType=None, status="Unknown", length=0):
@@ -41,7 +41,6 @@ class Response:
             response += self.body
             final = response.encode()
 
-        print(response)
         return final
 
 
@@ -53,8 +52,7 @@ class Request:
         get_content = headers[0].split()
 
         #   Get filename
-        print('Content: ')
-        print(get_content)
+
         self.verbo = get_content[0]      # Get / Post / Head
 
         self.path = get_content[1]
@@ -138,6 +136,7 @@ class Request:
             return True
         return False
 
+
 cache = []
 
 
@@ -156,8 +155,6 @@ class Statistics:
 
     def sort_cache(self):
         cache.sort(key=lambda k: k['count'], reverse=True)
-        print("SORT")
-        print(cache)
         n = 0
         #   Remover da cache as respostas abaixo do top 2
         for re in cache:
@@ -169,8 +166,6 @@ class Statistics:
     def add_cache(self, response, url):
         newStat = {"url": url, "response": response, "count": 1}
         cache.append(newStat)
-
-# def get_cache():
 
 
 def add_log(client, request_url):
@@ -185,27 +180,30 @@ def handle_request(request, client, stat):
     # Parse headers
     print("Request:"+request)
     headers = request.split('\n')
-    time.sleep(1)
     re = Request(headers=headers)
 
+    #   Fazer log do sucedido
     add_log(client.getpeername(), re.path)
+
+    #   Ir buscar a cache o ficheiro
     response = stat.get_from_cache(re.path)
 
     if response is not None:
-        print("RESPONDEU")
         return response
 
+    #   Se nao houver a resposta em cache entao vai criar uma nova
     time.sleep(0.1)
 
     try:
         if re.isPrivate():
             response = Response(status="HTTP/1.0 403 Forbidden", body="Private link",
-                            connectionType="close")
+                                connectionType="close")
             stat.add_cache(response, re.path)
             return response
 
         body = re.getContent()
 
+        #   Restorna so o cabeçalho
         if re.verbo == "HEAD":
             response = Response(status="HTTP/1.0 200 OK", connectionType="close", length=len(body))
             stat.add_cache(response, re.path)
@@ -230,9 +228,9 @@ def handle_request(request, client, stat):
     return response
 
 
+#   Metodo para fechar a conecção
 def close_connection(client_connection):
     client_connection.close()
-    print('closing timer')
 
 
 def client_handle(client_connection, stat):
